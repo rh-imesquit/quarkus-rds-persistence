@@ -1,0 +1,253 @@
+---
+- name: Provisiona VPC, IAM, RDS e Bastion na AWS
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - vault.yml
+  collections:
+    - amazon.aws
+
+  vars:
+    aws_region: sa-east-1
+    vpc_cidr: 10.0.0.0/16
+    subnet_a_cidr: 10.0.1.0/24
+    subnet_b_cidr: 10.0.2.0/24
+    public_subnet_cidr: 10.0.3.0/24
+    rds_db_name: musicdb
+    rds_username: admin
+    rds_instance_id: music-api-db
+    rds_instance_class: db.t3.micro
+    iam_user: quarkus_rds_user
+    iam_policy_name: QuarkusRDSPolicy
+    iam_role_name: QuarkusRDSRole
+    bastion_key_name: aws-bastion-key
+    bastion_ami: "{{ lookup('amazon.aws.aws_ssm', '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs', region=aws_region) }}"
+    bastion_instance_type: t3.micro
+    allowed_ssh_cidr: 0.0.0.0/0
+    rds_db_subnet_group: "{{ vpc.vpc.id }}-subnet-group"
+
+  tasks:
+    - name: Gather AWS caller identity
+      amazon.aws.aws_caller_info:
+      register: aws_caller
+
+    - name: Criar VPC
+      amazon.aws.ec2_vpc_net:
+        name: music-api-vpc
+        cidr_block: "{{ vpc_cidr }}"
+        region: "{{ aws_region }}"
+        state: present
+        tags:
+          Environment: workshop
+      register: vpc
+
+    - name: Criar Subnet AZ-a
+      amazon.aws.ec2_vpc_subnet:
+        vpc_id: "{{ vpc.vpc.id }}"
+        cidr: "{{ subnet_a_cidr }}"
+        az: "{{ aws_region }}a"
+        map_public: false
+        tags:
+          Name: music-api-subnet-a
+      register: subnet_a
+
+    - name: Criar Subnet AZ-b
+      amazon.aws.ec2_vpc_subnet:
+        vpc_id: "{{ vpc.vpc.id }}"
+        cidr: "{{ subnet_b_cidr }}"
+        az: "{{ aws_region }}b"
+        map_public: false
+        tags:
+          Name: music-api-subnet-b
+      register: subnet_b
+
+    - name: Criar Public Subnet AZ-a
+      amazon.aws.ec2_vpc_subnet:
+        vpc_id: "{{ vpc.vpc.id }}"
+        cidr: "{{ public_subnet_cidr }}"
+        az: "{{ aws_region }}a"
+        map_public: true
+        tags:
+          Name: music-api-public-subnet-a
+      register: public_subnet
+
+    - name: Criar Internet Gateway
+      amazon.aws.ec2_vpc_igw:
+        vpc_id: "{{ vpc.vpc.id }}"
+        state: present
+      register: igw
+
+    - name: Criar Route Table Pública
+      amazon.aws.ec2_vpc_route_table:
+        vpc_id: "{{ vpc.vpc.id }}"
+        tags:
+          Name: public-rt
+      register: public_rt
+
+    - name: Obter Internet Gateway Info
+      amazon.aws.ec2_vpc_igw_info:
+        filters:
+          attachment.vpc-id: "{{ vpc.vpc.id }}"
+      register: igw_info
+
+    - name: Criar rota padrão e associar ao Public Subnet
+      amazon.aws.ec2_vpc_route_table:
+        vpc_id: "{{ vpc.vpc.id }}"
+        route_table_id: "{{ public_rt.route_table.id }}"
+        routes:
+          - dest: "0.0.0.0/0"
+            gateway_id: "{{ igw_info.internet_gateways[0].internet_gateway_id }}"
+        subnets:
+          - "{{ public_subnet.subnet.id }}"
+        state: present
+
+    - name: Criar Security Group para RDS
+      amazon.aws.ec2_security_group:
+        name: music-api-rds-sg
+        description: "SG para MySQL"
+        vpc_id: "{{ vpc.vpc.id }}"
+        region: "{{ aws_region }}"
+        rules:
+          - proto: tcp
+            from_port: 3306
+            to_port: 3306
+            cidr_ip: "{{ public_subnet.subnet.cidr_block }}"
+        rules_egress:
+          - proto: -1
+            from_port: 0
+            to_port: 0
+            cidr_ip: "0.0.0.0/0"
+        tags:
+          Environment: workshop
+      register: rds_sg
+
+    - name: Criar Security Group para Bastion
+      amazon.aws.ec2_security_group:
+        name: music-api-bastion-sg
+        description: "SG para SSH bastion"
+        vpc_id: "{{ vpc.vpc.id }}"
+        region: "{{ aws_region }}"
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: "{{ allowed_ssh_cidr }}"
+        rules_egress:
+          - proto: -1
+            from_port: 0
+            to_port: 0
+            cidr_ip: 0.0.0.0/0
+        tags:
+          Environment: workshop
+      register: bastion_sg
+
+    - name: Criar Key Pair para Bastion
+      amazon.aws.ec2_key:
+        name: "{{ bastion_key_name }}"
+        state: present
+      register: bastion_key
+
+    - name: Salvar chave privada do Bastion localmente
+      copy:
+        content: "{{ bastion_key.key.private_key }}"
+        dest: "./{{ bastion_key_name }}.pem"
+        mode: '0600'
+      when: bastion_key.changed
+
+    - name: Criar IAM Managed Policy para acesso RDS
+      amazon.aws.iam_managed_policy:
+        name: "{{ iam_policy_name }}"
+        state: present
+        policy: |
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "rds:DescribeDBInstances",
+                  "rds:Connect"
+                ],
+                "Resource": "*"
+              }
+            ]
+          }
+        policy_description: "Policy para acesso RDS via Quarkus workshop"
+      register: rds_policy
+
+    - name: Criar IAM User com managed policy
+      amazon.aws.iam_user:
+        name: "{{ iam_user }}"
+        state: present
+        managed_policies:
+          - "arn:aws:iam::{{ aws_caller.account }}:policy/{{ iam_policy_name }}"
+      register: iam_user_result
+
+    - name: Criar IAM Role para Quarkus (EC2/ECS) com managed policy
+      amazon.aws.iam_role:
+        name: "{{ iam_role_name }}"
+        assume_role_policy_document: |
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": { "Service": ["ec2.amazonaws.com","ecs-tasks.amazonaws.com"] },
+                "Action": "sts:AssumeRole"
+              }
+            ]
+          }
+        state: present
+        managed_policies:
+          - "arn:aws:iam::{{ aws_caller.account }}:policy/{{ iam_policy_name }}"
+      register: quarkus_role
+
+    - name: Criar DB Subnet Group
+      amazon.aws.rds_subnet_group:
+        state: present
+        name: "{{ rds_db_subnet_group }}"
+        subnets:
+          - "{{ subnet_a.subnet.id }}"
+          - "{{ subnet_b.subnet.id }}"
+        description: "Subnet group para RDS music-api"
+
+    - name: Provisionar instância RDS MySQL
+      amazon.aws.rds_instance:
+        db_instance_identifier: "{{ rds_instance_id }}"
+        allocated_storage: 20
+        engine: mysql
+        engine_version: "8.0"
+        db_instance_class: "{{ rds_instance_class }}"
+        db_name: "{{ rds_db_name }}"
+        master_username: "{{ rds_username }}"
+        master_user_password: "{{ rds_password }}"
+        db_subnet_group_name: "{{ rds_db_subnet_group }}"
+        vpc_security_group_ids:
+          - "{{ rds_sg.group_id }}"
+        multi_az: false
+        publicly_accessible: false
+        backup_retention_period: 0
+        state: present
+        wait: yes
+        tags:
+          Environment: workshop
+
+    - name: Provisionar instância Bastion
+      amazon.aws.ec2_instance:
+        name: bastion-host
+        key_name: "{{ bastion_key_name }}"
+        instance_type: "{{ bastion_instance_type }}"
+        image_id: "{{ bastion_ami }}"
+        wait: yes
+        region: "{{ aws_region }}"
+        vpc_subnet_id: "{{ public_subnet.subnet.id }}"
+        network_interfaces:
+          - device_index: 0
+            subnet_id: "{{ public_subnet.subnet.id }}"
+            assign_public_ip: yes
+            groups:
+              - music-api-bastion-sg
+        tags:
+          Name: bastion-host
+          Environment: workshop
