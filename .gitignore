@@ -1,2 +1,2 @@
 .venv/
-/ansible-playbooks/aws-bastion-key.pem
+infra/ansible-playbooks/aws-bastion-key.pem
