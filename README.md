@@ -120,7 +120,7 @@ TO 'dbuser'@'%';
 FLUSH PRIVILEGES;
 ```
 
-curl -X POST http://localhost:8080/api/songs \  
+curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentlc.com/api/songs \  
   -H "Content-Type: application/json"    
   -d '{
         "title": "Stairway to Heaven",
@@ -129,7 +129,7 @@ curl -X POST http://localhost:8080/api/songs \
         }
       }'
 
-curl -X POST http://localhost:8080/api/songs \
+curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentlc.com/api/songs \
   -H "Content-Type: application/json" \
   -d '{
         "title": "Smoke on the Water",
@@ -138,7 +138,7 @@ curl -X POST http://localhost:8080/api/songs \
         }
       }'
 
-curl -X POST http://localhost:8080/api/songs \
+curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentlc.com/api/songs \
   -H "Content-Type: application/json" \
   -d '{
         "title": "Back in Black",
@@ -147,7 +147,7 @@ curl -X POST http://localhost:8080/api/songs \
         }
       }'
 
-curl -X POST http://localhost:8080/api/songs \
+curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentlc.com/api/songs \
   -H "Content-Type: application/json" \
   -d '{
         "title": "Kashmir",

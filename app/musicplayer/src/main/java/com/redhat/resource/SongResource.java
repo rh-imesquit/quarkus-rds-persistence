@@ -36,6 +36,7 @@ public class SongResource {
     }
 
     @POST
+    @Produces(MediaType.APPLICATION_JSON)
     public Response create(Song song) {
         Song created = service.create(song);
         return Response.status(Response.Status.CREATED).entity(created).build();
