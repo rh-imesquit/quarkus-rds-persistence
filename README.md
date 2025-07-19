@@ -76,7 +76,7 @@ ansible-playbook -i localhost, aws-create-infra.yaml --ask-vault-pass
 
 ssh -i "aws-bastion-key.pem" ec2-user@ec2-18-230-88-94.sa-east-1.compute.amazonaws.com
 
-Uma vez dentro da instância do bastion, vamos atualizar o **BLA BLA BLA* e instalar o mysql via linha de comando. Por fim, vamos nos conectar à instância RDS onde temos nosso banco de dados. 
+Uma vez dentro da instância do bastion, vamos atualizar todos os pacotes instalados no sistema para a versão mais recente disponível nos repositórios, e na sequência instalar o mysql via linha de comando. Por fim, vamos nos conectar à instância RDS onde temos nosso banco de dados. 
 
 > *O atributo host a ser informado deve ser o definido para a instância do RDS.*
 ```
@@ -120,8 +120,9 @@ TO 'dbuser'@'%';
 FLUSH PRIVILEGES;
 ```
 
-curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentlc.com/api/songs \  
-  -H "Content-Type: application/json"    
+curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentlc.com/api/songs \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
   -d '{
         "title": "Stairway to Heaven",
         "artist": {
@@ -130,6 +131,7 @@ curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentl
       }'
 
 curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentlc.com/api/songs \
+  -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -d '{
         "title": "Smoke on the Water",
@@ -139,6 +141,7 @@ curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentl
       }'
 
 curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentlc.com/api/songs \
+  -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -d '{
         "title": "Back in Black",
@@ -147,20 +150,18 @@ curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentl
         }
       }'
 
-curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentlc.com/api/songs \
-  -H "Content-Type: application/json" \
-  -d '{
-        "title": "Kashmir",
-        "artist": {
-          "id": 1
-        }
-      }'
 
+Para testar se as informações foram salvas no banco de dados corretamente, é possível usar os seguintes comandos:
+```
 select * from songs;
-
+```
+```
 select * from artists;
+```
+```
+select s.id, s.title, a.name from songs s inner join artists a on s.artist_id = a.id;
+```
 
-select s.id, s.title, a.name from songs s inner join artists a on s.artist_id = a.id where a.name = 'Led Zeppelin';
 
 
 ## Creating VPC Peering
