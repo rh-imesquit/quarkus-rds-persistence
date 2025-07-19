@@ -17,12 +17,14 @@ public class SongResource {
     SongService service;
 
     @GET
+    @Produces(MediaType.APPLICATION_JSON)
     public Response getAll() {
         return Response.ok(service.listAll()).build();
     }
 
     @GET
     @Path("/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
     public Response getById(@PathParam("id") Long id) {
         Song song = service.findById(id).get();
         
