@@ -74,7 +74,92 @@ rds_password: "dbrdspass"
 ansible-playbook -i localhost, aws-create-infra.yaml --ask-vault-pass
 
 
+## Creating VPC Peering
+
+1. Criar o VPC Peering (Região Solicita → Região Aceita)
+No Console AWS, mude o Region (canto superior direito) para us-east-2.
+
+Acesse o serviço VPC.
+
+No menu lateral, clique em Peering Connections.
+
+Clique em Create Peering Connection.
+
+Preencha:
+
+Name tag: por exemplo, openshift-to-rds
+
+VPC (Requester): selecione a VPC do seu OpenShift em us-east-2
+
+Account: My account
+
+Region (Peer): selecione sa-east-1
+
+VPC (Accepter): selecione a VPC onde está o RDS em sa-east-1
+
+Clique em Create Peering Connection.
+
+2. Aceitar o Peering na Região de Destino (sa-east-1)
+Ainda no Console AWS, mude o Region para sa-east-1.
+
+Vá novamente em VPC → Peering Connections.
+
+Você verá o peering criado em estado Pending Acceptance.
+
+Selecione-o e clique em Actions → Accept Request.
+
+Confirme em Accept.
+
+3. Atualizar as Route Tables
+3.1. Na VPC do OpenShift (us-east-2)
+Volte a Region = us-east-2.
+
+Em VPC → Route Tables, localize a Route Table usada pelos nós/pods do seu OpenShift.
+
+Com ela selecionada, na aba Routes, clique em Edit routes → Add route:
+
+Destination: CIDR da VPC do RDS (ex.: 10.2.0.0/16)
+
+Target: selecione o seu Peering Connection (pcx-...)
+
+Salve.
+
+3.2. Na VPC do RDS (sa-east-1)
+Mude para Region = sa-east-1.
+
+Em VPC → Route Tables, escolha a Route Table associada às subnets do RDS.
+
+Em Routes → Edit routes → Add route:
+
+Destination: CIDR da VPC do OpenShift (ex.: 10.1.0.0/16)
+
+Target: mesmo Peering Connection (pcx-...)
+
+Salve.
+
+4. Ajustar o Security Group do RDS
+Ainda em Region = sa-east-1:
+
+Vá em EC2 → Security Groups.
+
+Encontre o SG associado ao seu RDS.
+
+Na aba Inbound rules, clique em Edit inbound rules → Add rule:
+
+Type: MySQL/Aurora (TCP 3306)
+
+Source: digite o CIDR da VPC do OpenShift (ex.: 10.1.0.0/16) ou selecione o Security Group dos nós do OpenShift.
+
+Salve as regras.
+
+
+## Validando persistencia no banco de dados
+
+Agora, vamos logar na nossa intância EC2 que faz o papel de bastion via SSH usando uma chave pem.
+
+```
 ssh -i "aws-bastion-key.pem" ec2-user@ec2-18-230-88-94.sa-east-1.compute.amazonaws.com
+```
 
 Uma vez dentro da instância do bastion, vamos atualizar todos os pacotes instalados no sistema para a versão mais recente disponível nos repositórios, e na sequência instalar o mysql via linha de comando. Por fim, vamos nos conectar à instância RDS onde temos nosso banco de dados. 
 
@@ -161,87 +246,6 @@ select * from artists;
 ```
 select s.id, s.title, a.name from songs s inner join artists a on s.artist_id = a.id;
 ```
-
-
-
-## Creating VPC Peering
-
-1. Criar o VPC Peering (Região Solicita → Região Aceita)
-No Console AWS, mude o Region (canto superior direito) para us-east-2.
-
-Acesse o serviço VPC.
-
-No menu lateral, clique em Peering Connections.
-
-Clique em Create Peering Connection.
-
-Preencha:
-
-Name tag: por exemplo, openshift-to-rds
-
-VPC (Requester): selecione a VPC do seu OpenShift em us-east-2
-
-Account: My account
-
-Region (Peer): selecione sa-east-1
-
-VPC (Accepter): selecione a VPC onde está o RDS em sa-east-1
-
-Clique em Create Peering Connection.
-
-2. Aceitar o Peering na Região de Destino (sa-east-1)
-Ainda no Console AWS, mude o Region para sa-east-1.
-
-Vá novamente em VPC → Peering Connections.
-
-Você verá o peering criado em estado Pending Acceptance.
-
-Selecione-o e clique em Actions → Accept Request.
-
-Confirme em Accept.
-
-3. Atualizar as Route Tables
-3.1. Na VPC do OpenShift (us-east-2)
-Volte a Region = us-east-2.
-
-Em VPC → Route Tables, localize a Route Table usada pelos nós/pods do seu OpenShift.
-
-Com ela selecionada, na aba Routes, clique em Edit routes → Add route:
-
-Destination: CIDR da VPC do RDS (ex.: 10.2.0.0/16)
-
-Target: selecione o seu Peering Connection (pcx-...)
-
-Salve.
-
-3.2. Na VPC do RDS (sa-east-1)
-Mude para Region = sa-east-1.
-
-Em VPC → Route Tables, escolha a Route Table associada às subnets do RDS.
-
-Em Routes → Edit routes → Add route:
-
-Destination: CIDR da VPC do OpenShift (ex.: 10.1.0.0/16)
-
-Target: mesmo Peering Connection (pcx-...)
-
-Salve.
-
-4. Ajustar o Security Group do RDS
-Ainda em Region = sa-east-1:
-
-Vá em EC2 → Security Groups.
-
-Encontre o SG associado ao seu RDS.
-
-Na aba Inbound rules, clique em Edit inbound rules → Add rule:
-
-Type: MySQL/Aurora (TCP 3306)
-
-Source: digite o CIDR da VPC do OpenShift (ex.: 10.1.0.0/16) ou selecione o Security Group dos nós do OpenShift.
-
-Salve as regras.
-
 
 ## Destroy
 
