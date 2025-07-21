@@ -60,6 +60,7 @@ Vamos verificar se as credenciais informadas funcionam e se há conectividade à
 ```
 ansible localhost -m amazon.aws.aws_caller_info -c local
 ```
+
 Se o comando retornar sucesso, isso significa que o Ansible conseguiu se autenticar na AWS e está acessível a partir do host que rodou o comando.
 
 ![ AWS connection with Ansible OK](./images/ansible/02%20-%20AWS%20connection%20with%20Ansible%20OK.png)
@@ -67,22 +68,49 @@ Se o comando retornar sucesso, isso significa que o Ansible conseguiu se autenti
 
 ## Provisionando recursos na AWS usando playbook Ansible
 
+Esse laboratório já possui as playbooks pré-configuradas para uso com todos os recursos necessários para provisionamento. Essas playbooks econtram-se disponíveis em: 
+
+Para começar precisamos definir uma vault ansible para guardar a senha do nosso banco de dados MySQL.
+
+>> O que são as vaults no ansible?
+
+```
 ansible-vault create vault.yml
+```
 
+Nesse momento é solicitada a criação e confirmação de uma senha para acesso ao vault. No nosso exemplo, usamos a senha **redhat** Após informar, é criado um arquivo vazio chamado vault.yml.
 
-New Vault password: 
-Confirm New Vault password: 
+Aqui, vamos incluir o seguinte trecho *rds_password: "<db_password>"*. No nosso exemplo, definimos a senha **dbrdspass**. Essa será a senha do usuário admin do banco.
 
-redhat
+![Creating RDS password on vault](./images/ansible/03%20-%20Creating%20RDS%20password%20on%20vault.png)
 
+Após salvar o arquivo, ele será criptografado automaticamente.
+
+![Encrypted vault](./images/ansible/04%20-%20Encrypted%20vault.png)
+
+Uma outra forma de fazer isso seria criar o arquivo vault.yml manualmente, incluir o conteúdo e em seguida executar o comando abaixo. Nesse momento será solicitada a criação e confirmação de uma senha para o vault, assim como na forma anterior.
+
+```
 ansible-vault encrypt vault.yml
+```
 
+Caso queira descriptografar essa vault, substituindo a versão cifrada pela versão em texto puro, é só executar o comando abaixo. A senha criada para o vault será solicitada.
+
+```
 ansible-vault decrypt vault.yml
+```
 
-rds_password: "dbrdspass"
+Agora vamos executar a playbook. A execução desse comando deve demorar alguns minutos pois todos os recursos devem ser provisionados na AWS.
 
-
+```
 ansible-playbook -i localhost, aws-create-infra.yaml --ask-vault-pass
+```
+
+![Running creation playbook]()
+
+Ao final da execução, um relatório é gerado no terminal para informar o status da execução dessa playbook.
+
+![Play recap creation playbook]()
 
 
 ## Creating VPC Peering
@@ -164,7 +192,7 @@ Source: digite o CIDR da VPC do OpenShift (ex.: 10.1.0.0/16) ou selecione o Secu
 Salve as regras.
 
 
-## Validando persistencia no banco de dados
+## Validando o acesso ao banco de dados
 
 Agora, vamos logar na nossa intância EC2 que faz o papel de bastion via SSH usando uma chave pem.
 
@@ -175,11 +203,14 @@ ssh -i "aws-bastion-key.pem" ec2-user@ec2-18-230-88-94.sa-east-1.compute.amazona
 Uma vez dentro da instância do bastion, vamos atualizar todos os pacotes instalados no sistema para a versão mais recente disponível nos repositórios, e na sequência instalar o mysql via linha de comando. Por fim, vamos nos conectar à instância RDS onde temos nosso banco de dados. 
 
 > *O atributo host a ser informado deve ser o definido para a instância do RDS.*
+
 ```
 sudo yum update -y
-
+```
+```
 sudo yum install -y mysql
-
+```
+```
 mysql --host=music-api-db.cvtpccljwu07.sa-east-1.rds.amazonaws.com --port=3306 --user=admin --password musicdb
 ```
 
@@ -199,20 +230,14 @@ Vamos criar o usuário dbuser que será necessário na configuração da aplica�
 
 ```
 CREATE USER 'dbuser'@'%' IDENTIFIED BY 'dbpass';
-
+```
+```
 GRANT 
-    SELECT,
-    INSERT,
-    UPDATE,
-    DELETE,
-    CREATE,
-    ALTER,
-    DROP,
-    INDEX,
-    REFERENCES
+    SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, INDEX, REFERENCES
 ON musicdb.* 
 TO 'dbuser'@'%';
-
+```
+```
 FLUSH PRIVILEGES;
 ```
 
