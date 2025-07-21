@@ -72,7 +72,9 @@ Esse laboratório já possui as playbooks pré-configuradas para uso com todos o
 
 Para começar precisamos definir uma vault ansible para guardar a senha do nosso banco de dados MySQL.
 
->> O que são as vaults no ansible?
+>> **Vaults** são mecanismos para criptografar e proteger dados sensíveis (como senhas, chaves e tokens) que ficam em arquivos YAML. Com o Vault você pode cifrar e decifrar esses arquivos através de comandos e utilizá-los em playbooks sem expor segredos no repositório, garantindo que apenas quem conhece a senha ou possui o arquivo de senha consiga acessar o conteúdo protegido.
+
+Execute o comando abaixo para fazer a criação da vault.
 
 ```
 ansible-vault create vault.yml
