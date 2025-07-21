@@ -2,29 +2,45 @@
 
 
 
+## Preparando o ambiente
 
+Primeiro, vamos começar preparando o ambiente, instalando o Python 3, o gerenciador de pacotes pip e bibliotecas AWS (sdk boto).
+
+```
 sudo dnf install -y python3 python3-virtualenv python3-pip boto3 botocore
+```
 
+A seguir, vamos criar e ativar um ambiente virtual isolado (.venv), garantindo que as instalações futuras não afetem o sistema.
+
+```
 python3 -m venv .venv
-
+```
+```
 source .venv/bin/activate
+```
 
+Depois, atualizamos as ferramentas de empacotamento e instalamos o Ansible nesse ambiente.
+
+```
 pip install --upgrade pip setuptools wheel
-
+```
+```
 pip install ansible
+```
 
+Por fim, confirmamos a instalação checando a versão do Ansible.
+```
 ansible --version
-ansible [core 2.18.6]
-  config file = /etc/ansible/ansible.cfg
-  configured module search path = ['/home/imesquit/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
-  ansible python module location = /home/imesquit/HandsOn/AWS/RDS/ansible/.venv/lib64/python3.13/site-packages/ansible
-  ansible collection location = /home/imesquit/.ansible/collections:/usr/share/ansible/collections
-  executable location = /home/imesquit/HandsOn/AWS/RDS/ansible/.venv/bin/ansible
-  python version = 3.13.3 (main, Apr 22 2025, 00:00:00) [GCC 14.2.1 20250110 (Red Hat 14.2.1-7)] (/home/imesquit/HandsOn/AWS/RDS/ansible/.venv/bin/python3)
-  jinja version = 3.1.6
-  libyaml = True
+```
+ 
+Em nosso exemplo, foi instalado o Ansible na versão 2.18.6.
 
+![Ansible version](./images/ansible/01%20-%20Ansible%20version.png)
+
+Vamos instalar localmente a collection **amazon.aws**. Com ela podemos ter acesso a todos os módulos, plugins e roles da AWS para uso nos nossos playbooks Ansible.
+```
 ansible-galaxy collection install amazon.aws
+```
 
 code ~/.aws/credentials
 
@@ -184,7 +200,7 @@ O resultado deve ser algo como:
 
 *MySQL [musicdb]>*
 
-Vamos criar o usuário dbuser que será necessário para configurar a aplicação  que vai salvar as informações no banco de dados.
+Vamos criar o usuário dbuser que será necessário na configuração da aplicação que vai persistir as informações no banco de dados.
 
 ```
 CREATE USER 'dbuser'@'%' IDENTIFIED BY 'dbpass';
@@ -204,6 +220,10 @@ TO 'dbuser'@'%';
 
 FLUSH PRIVILEGES;
 ```
+
+## Testando o funcionamento
+
+Primeiro, vamos fazer as requisições do tipo POST, para salvar as músicas no banco de dados.
 
 curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentlc.com/api/songs \
   -H "Accept: application/json" \
@@ -236,7 +256,7 @@ curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentl
       }'
 
 
-Para testar se as informações foram salvas no banco de dados corretamente, é possível usar os seguintes comandos:
+A seguir, para testar se as informações foram salvas no banco de dados corretamente, é possível usar os seguintes comandos:
 ```
 select * from songs;
 ```
@@ -250,15 +270,3 @@ select s.id, s.title, a.name from songs s inner join artists a on s.artist_id = 
 ## Destroy
 
 ansible-playbook -i localhost, aws-destroy-infra.yaml --ask-vault-pass
-
-
-
-
-curl -X POST https://musicplayer-app.apps.cluster-qdq57.qdq57.sandbox1229.opentlc.com/api/songs \
-  -H "Content-Type: application/json" \
-  -d '{
-        "title": "Smoke on the Water",
-        "artist": {
-          "name": "Deep Purple"
-        }
-      }'
