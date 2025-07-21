@@ -28,7 +28,8 @@ pip install --upgrade pip setuptools wheel
 pip install ansible
 ```
 
-Por fim, confirmamos a instalação checando a versão do Ansible.
+Agora, precisamos confirmar a instalação checando a versão do Ansible.
+
 ```
 ansible --version
 ```
@@ -38,39 +39,33 @@ Em nosso exemplo, foi instalado o Ansible na versão 2.18.6.
 ![Ansible version](./images/ansible/01%20-%20Ansible%20version.png)
 
 Vamos instalar localmente a collection **amazon.aws**. Com ela podemos ter acesso a todos os módulos, plugins e roles da AWS para uso nos nossos playbooks Ansible.
+
 ```
 ansible-galaxy collection install amazon.aws
 ```
 
+Para o próximo passo, iremos editar o arquivo de credenciais de acesso à AWS. Os atributos aws_access_key_id e aws_secret_access_key podem ser obtidos no serviço IAM na console de gerenciamento AWS.
+
+```
 code ~/.aws/credentials
+```
 
-[default]
-aws_access_key_id     = <key_id>
-aws_secret_access_key = <access_key>
+O formato do arquivo deve ser algo parecido com: <br>
+**[default] <br>
+aws_access_key_id     = <key_id> <br>
+aws_secret_access_key = <access_key>**
 
+Vamos verificar se as credenciais informadas funcionam e se há conectividade à API da AWS.
 
-ansible-galaxy collection list | grep amazon.aws
-amazon.aws                               9.5.0  
-amazon.aws                               9.5.0
-
-
-ansible-doc -l | grep aws_caller_info
-amazon.aws.aws_caller_info
-
-
+```
 ansible localhost -m amazon.aws.aws_caller_info -c local
-[WARNING]: Platform linux on host imesquit-thinkpadt14gen3.rmtbr.csb is using the discovered Python interpreter at /home/imesquit/HandsOn/AWS/RDS/ansible/.venv/bin/python3.13, but future installation of another Python interpreter
-could change the meaning of that path. See https://docs.ansible.com/ansible-core/2.18/reference_appendices/interpreter_discovery.html for more information.
-imesquit-thinkpadt14gen3.rmtbr.csb | SUCCESS => {
-    "account": "363040862090",
-    "account_alias": "sandbox1568-gpte",
-    "ansible_facts": {
-        "discovered_interpreter_python": "/home/imesquit/HandsOn/AWS/RDS/ansible/.venv/bin/python3.13"
-    },
-    "arn": "arn:aws:iam::363040862090:user/open-environment-8s8hl-admin",
-    "changed": false,
-    "user_id": "AIDAVJBXL56FJFXMQYV42"
-}
+```
+Se o comando retornar sucesso, isso significa que o Ansible conseguiu se autenticar na AWS e está acessível a partir do host que rodou o comando.
+
+![ AWS connection with Ansible OK](./images/ansible/02%20-%20AWS%20connection%20with%20Ansible%20OK.png)
+
+
+## Provisionando recursos na AWS usando playbook Ansible
 
 ansible-vault create vault.yml
 
