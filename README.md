@@ -108,11 +108,30 @@ Agora vamos executar a playbook. A execução desse comando deve demorar alguns 
 ansible-playbook -i localhost, aws-create-infra.yaml --ask-vault-pass
 ```
 
-![Running creation playbook]()
+![Create infra playbook](./images/ansible/05%20-%20Create%20infra%20playbook.png)
 
 Ao final da execução, um relatório é gerado no terminal para informar o status da execução dessa playbook.
 
-![Play recap creation playbook]()
+![Play recap creation playbook](./images/ansible/06%20-%20Play%20recap%20creation%20playbook.png)
+
+Confira na console de gerenciamento da AWS, os recursos que foram criados na região sa-east-1.
+
+* VPC e componentes de rede:
+![Provisioned VPC](./images/aws/01%20-%20Provisioned%20VPC.png)
+
+* Instância EC2 Bastion:
+![Provisioned EC2 Bastion](./images/aws/02%20-%20Provisioned%20EC2%20Bastion.png)
+
+* Security Groups:
+![Provisioned Security Groups](./images/aws/03%20-%20Provisioned%20Security%20Groups.png)
+
+* Banco de dados RDS MySQL:
+![Provisioned RDS](./images/aws/04%20-%20Provisioned%20RDS.png)
+
+Finalizamos essa seção com sucesso. Agora, vamos fazer o deploy da nossa aplicação no Red Hat OpenShift e as devidas configurações para estabelecer o acesso ao banco de dados.
+
+
+## Deploy da aplicação no OpenShift
 
 
 ## Creating VPC Peering
